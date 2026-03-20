@@ -1,0 +1,26 @@
+# Large generated files — don't commit these
+sensor_data.csv
+anomalies.csv
+agrosentry.db
+*.db
+
+# SQL result CSVs (optional — you can commit these if you want)
+sql_*.csv
+daily_summary.csv
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp

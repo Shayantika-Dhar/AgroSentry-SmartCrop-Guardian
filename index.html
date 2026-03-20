@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgroSentry — Crop Field Analytics</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:       #0d110e;
+  --surface:  #131a14;
+  --card:     #1a2419;
+  --border:   #2a3d2b;
+  --green:    #4caf6e;
+  --green-d:  #2d7a48;
+  --amber:    #e8a838;
+  --amber-d:  #b07a1a;
+  --red:      #e05a4e;
+  --blue:     #5a9fd4;
+  --txt:      #d4e8d0;
+  --txt2:     #7a9e7e;
+  --txt3:     #4a6e4e;
+  --mono:     'Space Mono', monospace;
+  --sans:     'DM Sans', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--txt);
+  min-height: 100vh;
+}
+
+/* ── Header ────────────────────────────────────────────────────── */
+header {
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 100;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo-mark {
+  width: 32px;
+  height: 32px;
+  background: var(--green);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo-mark svg { width: 18px; height: 18px; }
+
+.logo-text {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--txt);
+}
+
+.logo-sub {
+  font-size: 11px;
+  color: var(--txt3);
+  font-family: var(--mono);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.pill {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  color: var(--txt2);
+}
+
+.pill.live {
+  border-color: var(--green-d);
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot-live {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.8); }
+}
+
+/* ── Layout ────────────────────────────────────────────────────── */
+.page { padding: 28px 32px; max-width: 1400px; }
+
+.section-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--txt3);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── KPI Grid ──────────────────────────────────────────────────── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.kpi-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.kpi-card:hover { border-color: var(--green-d); }
+
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent, var(--green-d));
+}
+
+.kpi-label {
+  font-size: 11px;
+  color: var(--txt3);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-family: var(--mono);
+  margin-bottom: 8px;
+}
+
+.kpi-value {
+  font-family: var(--mono);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--accent, var(--green));
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.kpi-unit {
+  font-size: 11px;
+  color: var(--txt3);
+}
+
+/* ── Charts Grid ───────────────────────────────────────────────── */
+.charts-row {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.charts-row.three  { grid-template-columns: 1.4fr 1fr 1fr; }
+.charts-row.two    { grid-template-columns: 1fr 1fr; }
+.charts-row.full   { grid-template-columns: 1fr; }
+
+.chart-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 22px;
+  transition: border-color 0.2s;
+}
+
+.chart-card:hover { border-color: var(--border); }
+
+.chart-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.chart-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--txt);
+}
+
+.chart-subtitle {
+  font-size: 11px;
+  color: var(--txt3);
+  margin-top: 2px;
+  font-family: var(--mono);
+}
+
+.chart-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--txt2);
+  border: 1px solid var(--border);
+}
+
+/* ── Field Selector ────────────────────────────────────────────── */
+.field-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.field-tab {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 5px 12px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--txt3);
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.5px;
+}
+
+.field-tab.active {
+  background: var(--green-d);
+  border-color: var(--green-d);
+  color: #fff;
+}
+
+/* ── Alert Banner ──────────────────────────────────────────────── */
+.alert-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.alert-card {
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid;
+}
+
+.alert-card.warning {
+  background: rgba(232,168,56,0.06);
+  border-color: rgba(232,168,56,0.25);
+}
+
+.alert-card.danger {
+  background: rgba(224,90,78,0.06);
+  border-color: rgba(224,90,78,0.25);
+}
+
+.alert-card.ok {
+  background: rgba(76,175,110,0.06);
+  border-color: rgba(76,175,110,0.25);
+}
+
+.alert-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.alert-card.warning .alert-icon { background: rgba(232,168,56,0.15); }
+.alert-card.danger  .alert-icon { background: rgba(224,90,78,0.15); }
+.alert-card.ok      .alert-icon { background: rgba(76,175,110,0.15); }
+
+.alert-body {}
+.alert-title { font-size: 12px; font-weight: 500; }
+.alert-desc  { font-size: 11px; color: var(--txt3); margin-top: 1px; font-family: var(--mono); }
+
+/* ── Heatmap ───────────────────────────────────────────────────── */
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: 36px repeat(24, 1fr);
+  gap: 3px;
+  font-family: var(--mono);
+  font-size: 9px;
+}
+
+.hm-label {
+  color: var(--txt3);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 6px;
+}
+
+.hm-cell {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  cursor: default;
+  transition: opacity 0.15s;
+}
+
+.hm-cell:hover { opacity: 0.7; }
+
+.hm-header { color: var(--txt3); text-align: center; }
+
+/* ── Footer ────────────────────────────────────────────────────── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 16px 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--txt3);
+  font-family: var(--mono);
+}
+
+footer a {
+  color: var(--green);
+  text-decoration: none;
+}
+
+footer a:hover { text-decoration: underline; }
+
+/* ── Loading state ─────────────────────────────────────────────── */
+#loading {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 999;
+  transition: opacity 0.4s;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 2px solid var(--border);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-text {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--txt3);
+  letter-spacing: 1px;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .kpi-grid          { grid-template-columns: repeat(3, 1fr); }
+  .charts-row.three  { grid-template-columns: 1fr; }
+  .charts-row.two    { grid-template-columns: 1fr; }
+  .alert-row         { grid-template-columns: 1fr; }
+  .page              { padding: 16px; }
+  header             { padding: 0 16px; }
+}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="logo-mark">
+    <svg viewBox="0 0 18 18" fill="none">
+      <path d="M9 2L9 16M2 9L16 9M4.5 4.5L13.5 13.5M13.5 4.5L4.5 13.5" stroke="#0d110e" stroke-width="2" stroke-linecap="round"/>
+    </svg>
+  </div>
+  <div class="spinner"></div>
+  <div class="loading-text">LOADING SENSOR DATA...</div>
+</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 18 18" fill="none">
+        <path d="M9 2L9 16M2 9L16 9M4.5 4.5L13.5 13.5M13.5 4.5L4.5 13.5" stroke="#0d110e" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <div class="logo-text">AgroSentry</div>
+      <div class="logo-sub">Smart Crop Analytics</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="pill">ARM7 · IoT</span>
+    <span class="pill">3 Fields · 4 Sensors</span>
+    <span class="pill live"><span class="dot-live"></span>Dashboard Live</span>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- KPIs -->
+  <div class="section-label">System overview</div>
+  <div class="kpi-grid">
+    <div class="kpi-card" style="--accent: var(--green);">
+      <div class="kpi-label">Avg temperature</div>
+      <div class="kpi-value" id="kpi-temp">—</div>
+      <div class="kpi-unit">°C across all fields</div>
+    </div>
+    <div class="kpi-card" style="--accent: var(--blue);">
+      <div class="kpi-label">Avg humidity</div>
+      <div class="kpi-value" id="kpi-hum" style="color: var(--blue)">—</div>
+      <div class="kpi-unit">% relative humidity</div>
+    </div>
+    <div class="kpi-card" style="--accent: var(--amber);">
+      <div class="kpi-label">Avg soil moisture</div>
+      <div class="kpi-value" id="kpi-soil" style="color: var(--amber)">—</div>
+      <div class="kpi-unit">% volumetric</div>
+    </div>
+    <div class="kpi-card" style="--accent: var(--red);">
+      <div class="kpi-label">Drought alerts</div>
+      <div class="kpi-value" id="kpi-drought" style="color: var(--red)">—</div>
+      <div class="kpi-unit">soil &lt; 25% threshold</div>
+    </div>
+    <div class="kpi-card" style="--accent: var(--txt2);">
+      <div class="kpi-label">Total readings</div>
+      <div class="kpi-value" id="kpi-readings" style="color: var(--txt2)">—</div>
+      <div class="kpi-unit">sensor data points</div>
+    </div>
+  </div>
+
+  <!-- Alerts -->
+  <div class="section-label">Field alerts</div>
+  <div class="alert-row" id="alerts-row">
+    <div class="alert-card warning">
+      <div class="alert-icon">⚡</div>
+      <div class="alert-body">
+        <div class="alert-title">Loading alerts...</div>
+        <div class="alert-desc">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top row: temp trend + field bar + soil donut -->
+  <div class="section-label">Trend analysis</div>
+  <div class="charts-row three" style="margin-bottom: 16px;">
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Temperature trend</div>
+          <div class="chart-subtitle">Daily avg · select field below</div>
+        </div>
+        <span class="chart-badge" id="trend-badge">Field_A</span>
+      </div>
+      <div class="field-tabs">
+        <button class="field-tab active" onclick="switchField('Field_A',this)">Field A</button>
+        <button class="field-tab"        onclick="switchField('Field_B',this)">Field B</button>
+        <button class="field-tab"        onclick="switchField('Field_C',this)">Field C</button>
+      </div>
+      <canvas id="tempChart" height="200"></canvas>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Field comparison</div>
+          <div class="chart-subtitle">Avg metrics per field</div>
+        </div>
+      </div>
+      <canvas id="fieldBar" height="270"></canvas>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Soil moisture split</div>
+          <div class="chart-subtitle">Stress level distribution</div>
+        </div>
+      </div>
+      <canvas id="soilDonut" height="270"></canvas>
+    </div>
+
+  </div>
+
+  <!-- Middle row: hourly heatmap + anomalies -->
+  <div class="charts-row two" style="margin-bottom: 16px;">
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Temperature by hour</div>
+          <div class="chart-subtitle">24-hour diurnal cycle</div>
+        </div>
+      </div>
+      <canvas id="hourChart" height="210"></canvas>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Soil moisture trend</div>
+          <div class="chart-subtitle">Daily avg all fields</div>
+        </div>
+      </div>
+      <canvas id="soilTrend" height="210"></canvas>
+    </div>
+
+  </div>
+
+  <!-- Bottom: humidity dist -->
+  <div class="charts-row full">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Humidity distribution across readings</div>
+          <div class="chart-subtitle">Binned frequency histogram</div>
+        </div>
+      </div>
+      <canvas id="humidHist" height="140"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <span>AgroSentry · IoT Crop Analytics · ARM7 Architecture</span>
+  <span>
+    Built by <a href="https://github.com/Shayantika-Dhar" target="_blank">Shayantika Dhar</a>
+    &nbsp;·&nbsp;
+    <a href="https://shayantika-dhar.github.io/Portfolio-ShayantikaDhar" target="_blank">Portfolio</a>
+    &nbsp;·&nbsp;
+    Data: simulated IoT sensor logs
+  </span>
+</footer>
+
+<script>
+const C = {
+  green:  '#4caf6e', greenD: '#2d7a48',
+  amber:  '#e8a838', amberD: '#b07a1a',
+  red:    '#e05a4e', blue:   '#5a9fd4',
+  txt:    '#d4e8d0', txt2:   '#7a9e7e', txt3: '#4a6e4e',
+  border: '#2a3d2b', card:   '#1a2419',
+};
+
+Chart.defaults.color          = C.txt2;
+Chart.defaults.borderColor    = C.border;
+Chart.defaults.font.family    = "'DM Sans', sans-serif";
+Chart.defaults.font.size      = 11;
+
+let allData = {}, tempChart, soilChart;
+
+function tryLoad() {
+  fetch('dashboard_data.json')
+    .then(r => { if (!r.ok) throw new Error('no json'); return r.json(); })
+    .then(data => { allData = data; init(data); })
+    .catch(() => {
+      allData = generateMockData();
+      init(allData);
+    });
+}
+
+function generateMockData() {
+  const fields  = ['Field_A','Field_B','Field_C'];
+  const daily   = [];
+  const hourly  = [];
+  const start   = new Date('2024-01-01');
+
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(start); d.setDate(d.getDate() + i);
+    const ds = d.toISOString().slice(0,10);
+    fields.forEach((f, fi) => {
+      daily.push({
+        date: ds, field: f,
+        avg_temp:     +(27 + fi * 1.5 + Math.sin(i/7)*3  + (Math.random()-0.5)*1).toFixed(2),
+        avg_humidity: +(65 - fi * 5   + Math.cos(i/7)*4  + (Math.random()-0.5)*2).toFixed(2),
+        avg_soil:     +(40 - fi * 5   + Math.sin(i/5)*6  + (Math.random()-0.5)*3).toFixed(2),
+        avg_light:    +(500            + Math.random()*200).toFixed(0),
+        min_soil:     +(22 + Math.random()*10).toFixed(2),
+      });
+    });
+  }
+
+  for (let h = 0; h < 24; h++) {
+    const diurnal = 4 * Math.sin((h - 6) * Math.PI / 12);
+    hourly.push({
+      hour: h,
+      avg_temp:     +(28 + diurnal + (Math.random()-0.5)).toFixed(2),
+      avg_humidity: +(65 - diurnal * 0.5 + (Math.random()-0.5)).toFixed(2),
+      avg_soil:     +(40 + (Math.random()-0.5)*2).toFixed(2),
+    });
+  }
+
+  const field_summary = fields.map((f,i) => ({
+    field: f,
+    avg_temp:     +(27 + i * 1.5).toFixed(2),
+    avg_humidity: +(65 - i * 5).toFixed(2),
+    avg_soil:     +(40 - i * 5).toFixed(2),
+    avg_light:    +(550 + i * 30).toFixed(0),
+    anomaly_count: Math.floor(Math.random()*25),
+  }));
+
+  const drought = daily.filter(r => r.avg_soil < 25);
+
+  return {
+    daily, hourly, field_summary, drought,
+    meta: {
+      total_readings: 12000,
+      total_anomalies: 360,
+      fields, sensors: ['S01','S02','S03','S04'],
+      date_range: ['2024-01-01','2024-02-11'],
+    }
+  };
+}
+
+function init(data) {
+  // KPIs
+  const all = data.daily;
+  const avg = k => (all.reduce((s,r) => s+r[k],0)/all.length).toFixed(1);
+  document.getElementById('kpi-temp').textContent     = avg('avg_temp') + '°';
+  document.getElementById('kpi-hum').textContent      = avg('avg_humidity') + '%';
+  document.getElementById('kpi-soil').textContent     = avg('avg_soil') + '%';
+  document.getElementById('kpi-drought').textContent  = data.drought ? data.drought.length : '—';
+  document.getElementById('kpi-readings').textContent =
+    data.meta ? data.meta.total_readings.toLocaleString() : all.length;
+
+  // Alerts
+  buildAlerts(data);
+
+  // Charts
+  buildTempChart(data.daily, 'Field_A');
+  buildFieldBar(data.field_summary);
+  buildSoilDonut(data.daily);
+  buildHourChart(data.hourly);
+  buildSoilTrend(data.daily);
+  buildHumidHist(data.daily);
+
+  // Hide loader
+  const loader = document.getElementById('loading');
+  loader.style.opacity = '0';
+  setTimeout(() => loader.style.display = 'none', 400);
+}
+
+function buildAlerts(data) {
+  const droughtCount = data.drought ? data.drought.length : 0;
+  const anomalyCount = data.meta ? data.meta.total_anomalies : '—';
+  const avgSoil      = (data.daily.reduce((s,r) => s+r.avg_soil,0)/data.daily.length).toFixed(1);
+
+  const alertsRow = document.getElementById('alerts-row');
+  alertsRow.innerHTML = `
+    <div class="alert-card ${droughtCount > 10 ? 'danger' : 'warning'}">
+      <div class="alert-icon">${droughtCount > 10 ? '🚨' : '⚠️'}</div>
+      <div class="alert-body">
+        <div class="alert-title">Drought alerts: ${droughtCount} readings</div>
+        <div class="alert-desc">soil_moisture_pct &lt; 25% threshold</div>
+      </div>
+    </div>
+    <div class="alert-card warning">
+      <div class="alert-icon">📡</div>
+      <div class="alert-body">
+        <div class="alert-title">Sensor anomalies: ${anomalyCount}</div>
+        <div class="alert-desc">Detected via 2σ statistical rule</div>
+      </div>
+    </div>
+    <div class="alert-card ok">
+      <div class="alert-icon">✅</div>
+      <div class="alert-body">
+        <div class="alert-title">Avg soil moisture: ${avgSoil}%</div>
+        <div class="alert-desc">Overall field health nominal</div>
+      </div>
+    </div>
+  `;
+}
+
+function getFieldDates(data, field) {
+  return data.filter(r => r.field === field)
+             .sort((a,b) => a.date.localeCompare(b.date));
+}
+
+function buildTempChart(data, field) {
+  const fd = getFieldDates(data, field);
+  const ctx = document.getElementById('tempChart');
+  if (tempChart) tempChart.destroy();
+  tempChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: fd.map(r => r.date.slice(5)),
+      datasets: [
+        {
+          label: 'Avg temp',
+          data: fd.map(r => r.avg_temp),
+          borderColor: C.green,
+          backgroundColor: 'rgba(76,175,110,0.08)',
+          tension: 0.35, fill: true, pointRadius: 0,
+        },
+        {
+          label: 'Max temp',
+          data: fd.map(r => r.max_temp),
+          borderColor: C.amber,
+          backgroundColor: 'transparent',
+          borderDash: [4,3],
+          tension: 0.35, pointRadius: 0,
+        },
+      ]
+    },
+    options: {
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 14 } } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 8, color: C.txt3 } },
+        y: { ticks: { color: C.txt3 }, grid: { color: C.border } },
+      }
+    }
+  });
+}
+
+function switchField(field, btn) {
+  document.querySelectorAll('.field-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('trend-badge').textContent = field;
+  buildTempChart(allData.daily, field);
+}
+
+function buildFieldBar(summary) {
+  if (!summary || !summary.length) return;
+  new Chart(document.getElementById('fieldBar'), {
+    type: 'bar',
+    data: {
+      labels: summary.map(r => r.field.replace('_',' ')),
+      datasets: [
+        { label: 'Temp °C',  data: summary.map(r => r.avg_temp),     backgroundColor: C.green },
+        { label: 'Humidity', data: summary.map(r => r.avg_humidity),  backgroundColor: C.blue },
+        { label: 'Soil %',   data: summary.map(r => r.avg_soil),      backgroundColor: C.amber },
+      ]
+    },
+    options: {
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12 } } },
+      scales: {
+        x: { ticks: { color: C.txt3 } },
+        y: { ticks: { color: C.txt3 }, grid: { color: C.border } },
+      }
+    }
+  });
+}
+
+function buildSoilDonut(data) {
+  const vals = data.map(r => r.avg_soil);
+  const buckets = [
+    { label: 'Critical (<20)',  min: 0,  max: 20  },
+    { label: 'High (20–30)',    min: 20, max: 30  },
+    { label: 'Medium (30–40)', min: 30, max: 40  },
+    { label: 'Normal (40+)',   min: 40, max: 200 },
+  ];
+  const counts = buckets.map(b => vals.filter(v => v >= b.min && v < b.max).length);
+  new Chart(document.getElementById('soilDonut'), {
+    type: 'doughnut',
+    data: {
+      labels: buckets.map(b => b.label),
+      datasets: [{ data: counts, backgroundColor: [C.red, C.amber, C.blue, C.green], borderWidth: 0 }]
+    },
+    options: {
+      cutout: '65%',
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12 } } }
+    }
+  });
+}
+
+function buildHourChart(hourly) {
+  new Chart(document.getElementById('hourChart'), {
+    type: 'bar',
+    data: {
+      labels: hourly.map(r => r.hour + 'h'),
+      datasets: [{
+        label: 'Avg temp °C',
+        data: hourly.map(r => r.avg_temp),
+        backgroundColor: hourly.map(r => {
+          const pct = (r.avg_temp - 24) / 10;
+          return `rgba(${Math.floor(76 + pct*150)},${Math.floor(175 - pct*110)},${Math.floor(110 - pct*60)},0.75)`;
+        }),
+        borderWidth: 0,
+        borderRadius: 3,
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: C.txt3, maxTicksLimit: 12 } },
+        y: { ticks: { color: C.txt3 }, grid: { color: C.border } },
+      }
+    }
+  });
+}
+
+function buildSoilTrend(data) {
+  const fields = ['Field_A','Field_B','Field_C'];
+  const colors = [C.green, C.amber, C.blue];
+  const allDates = [...new Set(data.map(r => r.date))].sort();
+
+  const ctx = document.getElementById('soilTrend');
+  if (soilChart) soilChart.destroy();
+  soilChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: allDates.map(d => d.slice(5)),
+      datasets: fields.map((f, i) => ({
+        label: f.replace('_', ' '),
+        data: allDates.map(d => {
+          const r = data.find(x => x.date === d && x.field === f);
+          return r ? r.avg_soil : null;
+        }),
+        borderColor: colors[i],
+        backgroundColor: 'transparent',
+        tension: 0.3, pointRadius: 0,
+      }))
+    },
+    options: {
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 12 } } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 8, color: C.txt3 } },
+        y: { ticks: { color: C.txt3 }, grid: { color: C.border } },
+      }
+    }
+  });
+}
+
+function buildHumidHist(data) {
+  const vals  = data.map(r => r.avg_humidity);
+  const bins  = Array.from({length:16}, (_,i) => 30 + i * 4);
+  const counts = bins.map(b => vals.filter(v => v >= b && v < b+4).length);
+  new Chart(document.getElementById('humidHist'), {
+    type: 'bar',
+    data: {
+      labels: bins.map(b => `${b}%`),
+      datasets: [{
+        label: 'Readings',
+        data: counts,
+        backgroundColor: C.blue + 'bb',
+        borderWidth: 0,
+        borderRadius: 3,
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: C.txt3 } },
+        y: { ticks: { color: C.txt3 }, grid: { color: C.border } },
+      }
+    }
+  });
+}
+
+window.switchField = switchField;
+tryLoad();
+</script>
+</body>
+</html>
